@@ -1,21 +1,17 @@
-from flask import Flask, render_template, redirect, url_for, request, jsonify
-import flask
+from flask import Flask, render_template, redirect, url_for, request, jsonify, flash, session
+from flask_login import UserMixin, login_user, LoginManager, current_user, logout_user, login_required
 from flask_bootstrap import Bootstrap5
-from flask_sqlalchemy import SQLAlchemy
 from flask_wtf import FlaskForm
-from wtforms import StringField, TextAreaField, SubmitField, URLField, SelectField, DecimalField, BooleanField, FileField, EmailField
+from sqlalchemy import ForeignKey
+from wtforms import StringField, TextAreaField, SubmitField, URLField, SelectField, DecimalField, BooleanField, EmailField
 from wtforms.validators import InputRequired
-from werkzeug.security import generate_password_hash
-from wtforms.widgets import TextArea
+from werkzeug.security import generate_password_hash, check_password_hash
 from wtforms.validators import DataRequired, URL
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.orm import relationship
 import os
 import datetime as dt
-
-
-# key = os.urandom(26).hex()
-# print(key)
-
+from forms import AddCafe, ReviewForm, LoginForm, RegisterForm
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "8b23dc14fc5e3e51e2a44d03daa7baacfded733e3a478e32f6af"
@@ -25,8 +21,14 @@ app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///cafes.db"
 db = SQLAlchemy()
 db.init_app(app)
 
-API_KEY = "AIzaSyDZLgNIqOsSKk8k3rjcKylPpz4EvlOfLTI"
-API_URL = "https://www.google.com/maps/embed/v1/MAP_MODE?key=AIzaSyDZLgNIqOsSKk8k3rjcKylPpz4EvlOfLTI"
+login_manager = LoginManager()
+login_manager.init_app(app)
+
+
+@login_manager.user_loader
+def load_user(user_id):
+    #return db.get_or_404(User, user_id)
+    return User.query.get(int(user_id))
 
 
 class Cafe(db.Model):
@@ -44,48 +46,24 @@ class Cafe(db.Model):
     seats = db.Column(db.String)
 
 
-class AddCafe(FlaskForm):
-    name = StringField("Name", validators=[InputRequired()])
-    map_url = URLField("Map", validators=[InputRequired()])
-    img_url = URLField("Image", validators=[InputRequired()])
-    location = StringField("Location", validators=[InputRequired()])
-    has_sockets = SelectField("Are there sockets?", choices=["yes", "no"], validators=[InputRequired()])
-    has_toilet = SelectField("Is there a toilet?", choices=["yes", "no"], validators=[InputRequired()])
-    has_wifi = SelectField("Does it have wifi?", choices=["yes", "no"], validators=[InputRequired()])
-    can_take_calls = SelectField("Can you take calls?", choices=["yes", "no"], validators=[InputRequired()])
-    coffee_price = DecimalField("Coffe Price", validators=[InputRequired()])
-    seats = SelectField("How many seats are there?", choices=[("0-10"), ("10-20"), ("20-30"), ("30-40"), ("40-50"), ("50+")], validators=[InputRequired()])
-    submit = SubmitField("Add Cafe")
-
-
-class ReviewForm(FlaskForm):
-    name = StringField("Name", validators=[InputRequired()])
-    message = TextAreaField("Your Review", validators=[InputRequired()])
-    submit = SubmitField("Send")
+class User(db.Model, UserMixin):
+    __tablename__ = "users"
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String, unique=True)
+    email = db.Column(db.String, unique=True)
+    password = db.Column(db.String)
+    reviews = relationship("Review", back_populates="review_author")
 
 
 class Review(db.Model):
     __tablename__ = "reviews"
     id = db.Column(db.Integer, primary_key=True)
     cafe_id = db.Column(db.Integer)
-    name = db.Column(db.String)
-    message = db.Column(db.String)
+    author_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    author_name = db.Column(db.String)
+    review_author = relationship("User", back_populates="reviews")
+    message = db.Column(db.Text)
     date = db.Column(db.String)
-
-
-class RegisterForm(FlaskForm):
-    name = StringField("Your Name", validators=[InputRequired()])
-    email = EmailField("Email", validators=[InputRequired()])
-    password = StringField("Password", validators=[InputRequired()])
-    submit = SubmitField("Register now")
-
-
-class User(db.Model):
-    __tablename__ = "users"
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String)
-    email = db.Column(db.String)
-    password = db.Column(db.String)
 
 
 with app.app_context():
@@ -135,47 +113,92 @@ def get_selected_cafe(cafe_id):
     for review in selected_reviews:
         review_dict = {
             "id": review.id,
-            "name": review.name,
+            "author_name": review.author_name,
             "message": review.message,
+            "author_id": review.author_id,
             "cafe_id": review.cafe_id,
             "date": review.date
         }
         list_reviews.append(review_dict)
-    #print(list_reviews)
-    return render_template("cafe.html", cafe=selected_cafe, reviews=list_reviews, api_key=API_URL)
+    return render_template("cafe.html", cafe=selected_cafe, reviews=list_reviews, current_user=current_user)
 
 
 @app.route("/review<int:cafe_id>", methods=["GET", "POST"])
 def write_review(cafe_id):
-    #selected_place = db.get_or_404(Cafe, cafe_id)
     form = ReviewForm()
     if form.validate_on_submit():
+        if not current_user.is_authenticated:
+            flash("You need to login or register to write a review.")
+            return redirect(url_for("login"))
+
         new_review = Review(
-            name=request.form.get("name"),
-            message=request.form.get("message"),
+            author_name=current_user.name,
+            message=form.message.data,
             cafe_id=cafe_id,
             date=dt.datetime.today().strftime('%B %d, %Y')
         )
         db.session.add(new_review)
         db.session.commit()
-        return redirect(url_for("get_cafes"))
+        return redirect(url_for("get_selected_cafe", cafe_id=cafe_id))
 
-    return render_template("review.html", form=form)
+    return render_template("review.html", form=form, current_user=current_user)
 
 
 @app.route("/register", methods=["GET", "POST"])
 def register_user():
     form = RegisterForm()
+
     if form.validate_on_submit():
+        result = db.session.execute(db.select(User).where(User.email == form.email.data))
+        user = result.scalar()
+
+        if user:
+            flash("You've already signed up with that email, log in instead.")
+            return redirect(url_for("login"))
+
+        hash_and_salted_pw = generate_password_hash(
+            form.password.data,
+            method='pbkdf2:sha256',
+            salt_length=12
+        )
         new_user = User(
             name=request.form.get("name"),
             email=request.form.get("email"),
-            password=request.form.get("password")
+            password=hash_and_salted_pw,
         )
         db.session.add(new_user)
         db.session.commit()
+        login_user(new_user)
         return redirect(url_for("home"))
-    return render_template("register.html", form=form)
+    return render_template("register.html", form=form, current_user=current_user)
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    form = LoginForm()
+    if form.validate_on_submit():
+        password = form.password.data
+        result = db.session.execute(db.select(User).where(User.email == form.email.data))
+        user = result.scalar()
+
+        if not user:
+            flash("This user does not exist. Please register.")
+            return redirect(url_for("login"))
+        elif not check_password_hash(user.password, password):
+            flash("Password incorrect, please try again.")
+            return redirect(url_for("login"))
+        else:
+            login_user(user)
+            return redirect(url_for("home"))
+    return render_template("login.html", form=form, current_user=current_user)
+
+
+@app.route("/logout", methods=["GET", "POST"])
+def logout():
+    if current_user.is_authenticated:
+        logout_user()
+        return redirect(url_for("home"))
+    return redirect(url_for("home"))
 
 
 if __name__ == "__main__":
