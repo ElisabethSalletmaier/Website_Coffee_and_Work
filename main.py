@@ -2,12 +2,11 @@ import flask
 from flask import Flask, render_template, redirect, url_for, request, flash
 from flask_login import UserMixin, login_user, LoginManager, current_user, logout_user, login_required
 from flask_bootstrap import Bootstrap5
-from flask_wtf import FlaskForm
-from sqlalchemy import ForeignKey
-from wtforms import StringField, TextAreaField, SubmitField, URLField, SelectField, DecimalField, BooleanField, EmailField
-from wtforms.validators import InputRequired
+# from flask_wtf import FlaskForm
+# from sqlalchemy import ForeignKey
+# from wtforms import StringField, TextAreaField, SubmitField, URLField, SelectField, DecimalField, BooleanField, EmailField
+# from wtforms.validators import InputRequired
 from werkzeug.security import generate_password_hash, check_password_hash
-from wtforms.validators import DataRequired, URL
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import relationship
 import os
@@ -16,9 +15,8 @@ from flask_gravatar import Gravatar
 from forms import ReviewForm, LoginForm, RegisterForm, AddCafe
 
 
-
 app = Flask(__name__)
-app.config["SECRET_KEY"] = "8b23dc14fc5e3e51e2a44d03daa7baacfded733e3a478e32f6af"
+app.config["SECRET_KEY"] = os.environ.get("FLASK_KEY")
 Bootstrap5(app)
 
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///cafes.db"
@@ -86,6 +84,32 @@ with app.app_context():
 @app.route("/")
 def home():
     return render_template("index.html")
+
+
+@app.route("/add_cafe", methods=["GET", "POST"])
+@login_required
+def add_cafe():
+    form = AddCafe()
+    if form.validate_on_submit():
+        if not current_user.is_authenticated:
+            flash("You need to login or register to add a café.")
+            return redirect(url_for("login"))
+        new_cafe = Cafe(
+            name=form.name.data,
+            map_url=form.map_url.data,
+            img_url=form.img_url.data,
+            location=form.location.data,
+            has_sockets=form.has_sockets.data,
+            has_toilet=form.has_toilet.data,
+            has_wifi=form.has_wifi.data,
+            can_take_calls=form.can_take_calls.data,
+            coffee_price=form.coffee_price.data,
+            seats=form.seats.data
+        )
+        db.session.add(new_cafe)
+        db.session.commit()
+        return redirect(url_for("get_cafes"))
+    return render_template("add_cafe.html", form=form)
 
 
 @app.route("/all_cafes", methods=["GET", "POST"])
@@ -175,8 +199,6 @@ def register_user():
             email=request.form.get("email"),
             password=hash_and_salted_pw,
         )
-
-
         db.session.add(new_user)
         db.session.commit()
         login_user(new_user)

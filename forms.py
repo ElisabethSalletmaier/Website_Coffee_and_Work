@@ -1,7 +1,7 @@
 from flask_wtf import FlaskForm
 from wtforms.fields.choices import SelectField
-from wtforms.fields.numeric import DecimalField
-from wtforms.fields.simple import StringField, URLField, SubmitField, TextAreaField, EmailField
+from wtforms.fields.numeric import FloatField
+from wtforms.fields.simple import StringField, URLField, SubmitField, TextAreaField, EmailField, BooleanField
 from wtforms.validators import InputRequired
 
 
@@ -10,11 +10,11 @@ class AddCafe(FlaskForm):
     map_url = URLField("Map", validators=[InputRequired()])
     img_url = URLField("Image", validators=[InputRequired()])
     location = StringField("Location", validators=[InputRequired()])
-    has_sockets = SelectField("Are there sockets?", choices=["yes", "no"], validators=[InputRequired()])
-    has_toilet = SelectField("Is there a toilet?", choices=["yes", "no"], validators=[InputRequired()])
-    has_wifi = SelectField("Does it have wifi?", choices=["yes", "no"], validators=[InputRequired()])
-    can_take_calls = SelectField("Can you take calls?", choices=["yes", "no"], validators=[InputRequired()])
-    coffee_price = DecimalField("Coffe Price", validators=[InputRequired()])
+    has_sockets = BooleanField("Are there sockets?", default=False)
+    has_toilet = BooleanField("Is there a toilet?", default=False)
+    has_wifi = BooleanField("Does it have wifi?",default=False)
+    can_take_calls = BooleanField("Can you take calls?", default=False)
+    coffee_price = FloatField("Coffe Price", validators=[InputRequired()])
     seats = SelectField("How many seats are there?", choices=[("0-10"), ("10-20"), ("20-30"), ("30-40"), ("40-50"), ("50+")], validators=[InputRequired()])
     submit = SubmitField("Add Cafe")
 
