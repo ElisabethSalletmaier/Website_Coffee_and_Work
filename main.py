@@ -2,10 +2,6 @@ import flask
 from flask import Flask, render_template, redirect, url_for, request, flash
 from flask_login import UserMixin, login_user, LoginManager, current_user, logout_user, login_required
 from flask_bootstrap import Bootstrap5
-# from flask_wtf import FlaskForm
-# from sqlalchemy import ForeignKey
-# from wtforms import StringField, TextAreaField, SubmitField, URLField, SelectField, DecimalField, BooleanField, EmailField
-# from wtforms.validators import InputRequired
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import relationship
