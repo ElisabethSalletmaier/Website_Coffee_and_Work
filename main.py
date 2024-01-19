@@ -1,4 +1,5 @@
-from flask import Flask, render_template, redirect, url_for, request, jsonify, flash, session
+import flask
+from flask import Flask, render_template, redirect, url_for, request, flash
 from flask_login import UserMixin, login_user, LoginManager, current_user, logout_user, login_required
 from flask_bootstrap import Bootstrap5
 from flask_wtf import FlaskForm
@@ -11,7 +12,10 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import relationship
 import os
 import datetime as dt
-from forms import AddCafe, ReviewForm, LoginForm, RegisterForm
+from flask_gravatar import Gravatar
+from forms import ReviewForm, LoginForm, RegisterForm, AddCafe
+
+
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "8b23dc14fc5e3e51e2a44d03daa7baacfded733e3a478e32f6af"
@@ -27,23 +31,32 @@ login_manager.init_app(app)
 
 @login_manager.user_loader
 def load_user(user_id):
-    #return db.get_or_404(User, user_id)
     return User.query.get(int(user_id))
+
+
+gravatar = Gravatar(app,
+                    size=40,
+                    rating='g',
+                    default='retro',
+                    force_default=False,
+                    force_lower=False,
+                    use_ssl=False,
+                    base_url=None)
 
 
 class Cafe(db.Model):
     __tablename__ = "cafe"
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String)
-    map_url = db.Column(db.String)
-    img_url = db.Column(db.String)
-    location = db.Column(db.String)
+    name = db.Column(db.String, nullable=False)
+    map_url = db.Column(db.String, nullable=False)
+    img_url = db.Column(db.String, nullable=False)
+    location = db.Column(db.String, nullable=False)
     has_sockets = db.Column(db.Boolean, default=False, nullable=False)
     has_toilet = db.Column(db.Boolean, default=False, nullable=False)
     has_wifi = db.Column(db.Boolean, default=False, nullable=False)
     can_take_calls = db.Column(db.Boolean, default=False, nullable=False)
-    coffee_price = db.Column(db.Float)
-    seats = db.Column(db.String)
+    coffee_price = db.Column(db.Float, nullable=False)
+    seats = db.Column(db.String, nullable=False)
 
 
 class User(db.Model, UserMixin):
@@ -96,16 +109,12 @@ def get_cafes():
                 "coffee_price": cafe.coffee_price,
         }
         list_cafe.append(cafe_dict)
-    #print(list_cafe)
     return render_template("all_cafes.html", cafes=list_cafe)
-# jsonify(cafes=list_cafe),
 
 
 @app.route("/selected_cafe<int:cafe_id>", methods=["GET", "POST"])
 def get_selected_cafe(cafe_id):
     selected_cafe = db.get_or_404(Cafe, cafe_id)
-    # selected_cafe = db.session.execute(db.select(Cafe).where(Cafe.id == cafe_id))
-    # selected_cafe = Cafe.id, cafe_id
 
     result_reviews = db.session.execute(db.select(Review).where(Review.cafe_id == cafe_id))
     selected_reviews = result_reviews.scalars().all()
@@ -166,6 +175,8 @@ def register_user():
             email=request.form.get("email"),
             password=hash_and_salted_pw,
         )
+
+
         db.session.add(new_user)
         db.session.commit()
         login_user(new_user)

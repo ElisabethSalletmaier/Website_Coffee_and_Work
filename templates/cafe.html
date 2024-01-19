@@ -12,6 +12,10 @@
      border-radius: 10px;
      padding-bottom: 20px;
     }
+
+    .avatar{
+        border-radius: 50%;
+    }
 </style>
 
 <body>
@@ -135,7 +139,8 @@
         {% for review in reviews %}
             <p class="lead text-body-secondary" style="margin-bottom: -2px; font-size: 15px">{{review.date}}</p>
             <p class="lead">{{ review.message }}</p>
-            <p style="padding-bottom: 10px">Review written by {{ review.author_name }}</p>
+            <p style="padding-bottom: 10px">Review written by {{ review.author_name }} <img class="avatar" src="{{ review.author_name | gravatar }}">
+            </p>
             <hr class="featurette-divider">
         {%endfor%}
     </div>
