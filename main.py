@@ -1,4 +1,3 @@
-import flask
 from flask import Flask, render_template, redirect, url_for, request, flash
 from flask_login import UserMixin, login_user, LoginManager, current_user, logout_user, login_required
 from flask_bootstrap import Bootstrap5
@@ -9,7 +8,7 @@ import os
 import datetime as dt
 from flask_gravatar import Gravatar
 from forms import ReviewForm, LoginForm, RegisterForm, AddCafe
-
+import gunicorn
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get("FLASK_KEY")
