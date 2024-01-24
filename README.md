@@ -1,4 +1,4 @@
-# website_cafe_wifi
+# website_coffee_and_work
 
 I created a web application "coffee and work" with flask. It shows different coffee places that also work as working places. 
 
